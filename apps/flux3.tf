@@ -26,7 +26,7 @@ provider "github" {
 locals {
   labels_prefix = var.labels_prefix
 
-  flux = merge (
+  flux = merge(
         {
           enabled                  = true
           create_ns                = true
@@ -44,17 +44,17 @@ locals {
           components               = var.components
           provider                 = var.repo_provider
           auto_image_update        = false
-        }
-        var.flux2
+        },
+        var.flux3
     )
 
-  apply = local.flux["enabled"] ? [for v in data.kubectl_file_documents.apply[0].documents : {
+  apply = local.flux3["enabled"] ? [for v in data.kubectl_file_documents.apply[0].documents : {
     data : yamldecode(v)
     content : v
     }
   ] : null 
 
-  sync = local.flux["enabled"] ? [for v in data.kubectl_file_documents.sync[0].documents : {
+  sync = local.flux3["enabled"] ? [for v in data.kubectl_file_documents.sync[0].documents : {
     data : yamldecode(v)
     content : v
     } 
@@ -62,14 +62,14 @@ locals {
 }
 
 resource "kubernetes_namespace" "flux"{
-  count = local.flux[enabled] && local.flux["create_ns"] ? 1 : 0
+  count = local.flux3[enabled] && local.flux["create_ns"] ? 1 : 0
 
   metadata {
     labels = {
-      name = local.flux["namespace"]
+      name = local.flux3["namespace"]
     }
 
-    name = local.flux["namespace"]
+    name = local.flux3["namespace"]
 
   }
 
@@ -80,48 +80,48 @@ resource "kubernetes_namespace" "flux"{
 }
 
 data "flux_install" "main" {
-  count          = local.flux["enabled"] ? 1 : 0
-  namespace      = local.flux["namespace"]
-  target_path    = local.flux["target_path"]
+  count          = local.flux3["enabled"] ? 1 : 0
+  namespace      = local.flux3["namespace"]
+  target_path    = local.flux3["target_path"]
   network_policy = false
   version = local.flux["version"]
-  components = distinct(concat(local.flux["default_components"], local.flux["components"], local.flux["auto_image_update"] ? ["image-reflector-controller", "image-automation-controller"] : []))
+  components = distinct(concat(local.flux3["default_components"], local.flux3["components"], local.flux3["auto_image_update"] ? ["image-reflector-controller", "image-automation-controller"] : []))
 }
 
 
 # Split multi-doc YAML with
 # https://registry.terraform.io/providers/gavinbunney/kubectl/latest
 data "kubectl_file_documents" "apply" {
-  count   = local.flux["enabled"] ? 1 : 0
+  count   = local.flux3["enabled"] ? 1 : 0
   content = data.flux_install.main[0].content 
 }
 
 # Apply manifests on the cluster
 resource "kubectl_manifest" "apply" {
-  for_each = local.flux["enabled"] ? { for v in local.sync : ower(join("/", compact([v.data.apiVersion, v.data.kind, lookup(v.data.metadata, "namespace", ""), v.data.metadata.name]))) => v.content } : {}
+  for_each = local.flux3["enabled"] ? { for v in local.sync : ower(join("/", compact([v.data.apiVersion, v.data.kind, lookup(v.data.metadata, "namespace", ""), v.data.metadata.name]))) => v.content } : {}
   depends_on = [kubernetes_namespace.flux]
   yaml_body = each.value 
 }
 
 #Generate manifest
 data "flux_sync" "main" {
-  count       = local.flux["enabled"] ? 1 : 0
-  target_path = local.flux["target_path"]
-  url         = local.flux["repo_url"]
-  branch      = local.flux["flux_sync_bran"] != "" ? local.flux["flux_sync_branch"] : loca.flux["branch"]
-  namespace   = local.flux["namespace"]
+  count       = local.flux3["enabled"] ? 1 : 0
+  target_path = local.flux3["target_path"]
+  url         = local.flux3["repo_url"]
+  branch      = local.flux3["flux_sync_bran"] != "" ? local.flux["flux_sync_branch"] : loca.flux["branch"]
+  namespace   = local.flux3["namespace"]
 }
 
 #split multi-doc YAML with
 # https://registry.terraform.io/providers/gavinbunney/kubectl/latest
 data "kubectl_file_documents" "sync" {
-  count   = local.flux["enabled"] ? 1 : 0
+  count   = local.flux3["enabled"] ? 1 : 0
   content = data.flux_install.main[0].content 
 }
 
 #Apply manifest on the cluster
 resource "kubectl_manifest" "sync" {
-  for_each = local.flux["enabled"] ? {for v in local.sync : lower(join("/", compact([v.data.apiVersion, v.data.kind, lookup(v.data.metadata, "namespace", ""), v.data.metadata.name]))) => v.content } : {}
+  for_each = local.flux3["enabled"] ? {for v in local.sync : lower(join("/", compact([v.data.apiVersion, v.data.kind, lookup(v.data.metadata, "namespace", ""), v.data.metadata.name]))) => v.content } : {}
   depends_on = [
     kubernetes_namespace.flux,
     kubernetes_manifest.apply
@@ -132,7 +132,7 @@ resource "kubectl_manifest" "sync" {
 
 #Generate a Kubernates secret wuth the Git credentials
 resource "kubernetes_secret" "main" {
-  count = local.flux["enabled"] ? 1 : 0
+  count = local.flux3["enabled"] ? 1 : 0
   depends_on = [kubectl_manifest]
 
   metadata {
@@ -148,21 +148,21 @@ resource "kubernetes_secret" "main" {
 
 #Github
 resource "github_repository" "main" {
-  count      = local.flux["enbled"] && local.flux[create_github_repository] && (local.flux["provider"] == "github") ? 1 : 0
-  name       = local.flux["repository"]
-  visibility = local.flux["repository_visibility"]
+  count      = local.flux3["enbled"] && local.flux3[create_github_repository] && (local.flux3["provider"] == "github") ? 1 : 0
+  name       = local.flux3["repository"]
+  visibility = local.flux3["repository_visibility"]
   auto_init  = true  
 }
 
 data "github_repository" "main" {
-  count = local.flux["enabled"] &&!local.flux["create_github_repository"] && (local.flux["provider"] == "github") ? 1 : 0 
+  count = local.flux3["enabled"] &&!local.flux3["create_github_repository"] && (local.flux3["provider"] == "github") ? 1 : 0 
   full_name = "${var.github.owner}/${var.repository_name}"  
 }
 
 resource "github_branch_default" "main" {
-  count      = local.flux["enabled"] && local.flux["create_github_repository"] && (local.flux["provider"] == "github") ? 1 : 0
-  repository = local.flux["create_github_repository"] ? github_repository.main[0].name : data.github_repository.main[0].name
-  branch     = local.flux["branch"]  
+  count      = local.flux3["enabled"] && local.flux3["create_github_repository"] && (local.flux3["provider"] == "github") ? 1 : 0
+  repository = local.flux3["create_github_repository"] ? github_repository.main[0].name : data.github_repository.main[0].name
+  branch     = local.flux3["branch"]  
 }
 
 output "data_github" {
@@ -170,11 +170,11 @@ output "data_github" {
 }
 
 resource "kubernetes_network_policy" "flux_allow_monitoring" {
-  count      = local.flux["enabled"] && local.flux["default_network_policy"] ? 1 : 0 
+  count      = local.flux3["enabled"] && local.flux3["default_network_policy"] ? 1 : 0 
 
   metadata {
-    name      = "${local.flux["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux["namespace"]}-allow-monitoring"
-    namespace = local.flux["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux["namespace"]
+    name      = "${local.flux3["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux3["namespace"]}-allow-monitoring"
+    namespace = local.flux3["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux3["namespace"]
   }
 
   spec {
@@ -202,11 +202,11 @@ resource "kubernetes_network_policy" "flux_allow_monitoring" {
 }
 
 resource "kubernetes_network_policy" "flux_allow_namespace" {
-  count = local.flux["enabled"] && local.flux["default_network_policy"] ? 1 : 0
+  count = local.flux3["enabled"] && local.flux3["default_network_policy"] ? 1 : 0
 
   metadata {
-    name      = "${local.flux["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux["namespace"]}-allow-namespace"
-    namespace = local.flux["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux["namespace"]
+    name      = "${local.flux3["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux3["namespace"]}-allow-namespace"
+    namespace = local.flux3["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux3["namespace"]
   }
 
 
@@ -218,7 +218,7 @@ resource "kubernetes_network_policy" "flux_allow_namespace" {
       from {
         namespace_selector {
           match_labels = {
-            name = local.flux["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux["namespace"]
+            name = local.flux3["create_ns"] ? kubernetes_namespace.flux.*.metadata.0.name[count.index] : local.flux3["namespace"]
           }
         }
       }
