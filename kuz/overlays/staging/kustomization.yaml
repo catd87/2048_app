@@ -7,4 +7,4 @@ resources:
 - staging.yaml
 - service.yaml
 bases:
-  - /home/carlos/escritorio_viejo/CTK/kuz/base
+  - /home/carlos/escritorio_viejo/labs/2048_back/2048_app/kuz/base

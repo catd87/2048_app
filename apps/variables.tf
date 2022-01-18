@@ -30,7 +30,7 @@ variable "repo_provider" {
 }
 
 variable "flux3" {
-  description = "Customize Flux chart, see `flux3.tf` for supported values"
+  description = "Customize Flux chart, see `flux2.tf` for supported values"
   type        = any
   default     = {}
 }
@@ -44,3 +44,6 @@ variable "labels_prefix" {
 variable "bucket" {}
 variable "key" {}
 variable "region" {}
+variable "github_owner" {
+  default = "catd87"
+}
